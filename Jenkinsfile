@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     parameters {
-        string(name: 'APP_PORT', defaultValue: '8081', description: 'Nhập cổng muốn chạy ứng dụng')
+        string(name: 'APP_PORT', defaultValue: '8386', description: 'Nhập cổng muốn chạy ứng dụng')
         string(name: 'BRANCH', defaultValue: 'main', description: 'Nhánh muốn build')
     }
 
@@ -54,15 +54,20 @@ pipeline {
         stage('Deploy (Local Container)') {
             steps {
                 script {
-                    // Tắt app cũ đang chạy trên port này trước khi chạy app mới (tránh lỗi Port in use)
-                    sh "fuser -k ${params.PORT}/tcp || true"
+                    // Kiểm tra và cài psmisc nếu chưa có (chỉ chạy 1 lần)
+                    sh "command -v fuser >/dev/null 2>&1 || (apt-get update && apt-get install -y psmisc)"
 
-                    echo "Đang khởi chạy ứng dụng tại port: ${params.PORT}..."
-                    sh "nohup java -jar ${env.JAR_PATH} --server.port=${params.APP_PORT} > app.log 2>&1 &"
+                    // Dùng đúng tên biến APP_PORT
+                    sh "fuser -k ${params.APP_PORT}/tcp || true"
 
-                    // Đợi app khởi động
-                    sleep 5
-                    echo "✅ App đã sẵn sàng tại: http://localhost:${params.APP_PORT}/api/products"
+                    echo "Đang khởi chạy ứng dụng tại port: ${params.APP_PORT}..."
+
+                    withEnv(['JENKINS_NODE_COOKIE=dontKillMe']) {
+                        // Chạy app và KHÔNG xóa workspace ngay lập tức
+                        sh "nohup java -jar target/*.jar --server.port=${params.APP_PORT} > app.log 2>&1 &"
+                    }
+                    sleep 10
+                    sh "cat app.log" // In log ra để kiểm tra xem Spring Boot có báo lỗi gì không
                 }
             }
         }
@@ -77,7 +82,6 @@ pipeline {
         }
         always {
             // Dọn dẹp các tiến trình thừa hoặc file tạm nếu cần
-            cleanWs()
             echo "Kết thúc phiên làm việc."
         }
     }

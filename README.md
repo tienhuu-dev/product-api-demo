@@ -109,11 +109,11 @@ mvn spring-boot:run
 java -jar target/product-api-demo-0.0.1-SNAPSHOT.jar
 ```
 
-Ứng dụng sẽ chạy tại: `http://localhost:8080`
+Ứng dụng sẽ chạy tại: `http://localhost:8386`
 
 ## 📡 API Endpoints
 
-Base URL: `http://localhost:8080/api/products`
+Base URL: `http://localhost:8386/api/products`
 
 ### Sử dụng Postman để test API
 
@@ -122,7 +122,7 @@ Base URL: `http://localhost:8080/api/products`
 **Request:**
 
 - Method: `GET`
-- URL: `http://localhost:8080/api/products`
+- URL: `http://localhost:8386/api/products`
 
 **Response:**
 
@@ -144,9 +144,9 @@ Base URL: `http://localhost:8080/api/products`
 **Request:**
 
 - Method: `GET`
-- URL: `http://localhost:8080/api/products/{id}`
+- URL: `http://localhost:8386/api/products/{id}`
 
-  Ví dụ: `http://localhost:8080/api/products/1`
+  Ví dụ: `http://localhost:8386/api/products/1`
 
 **Response:**
 
@@ -166,7 +166,7 @@ Base URL: `http://localhost:8080/api/products`
 **Request:**
 
 - Method: `POST`
-- URL: `http://localhost:8080/api/products`
+- URL: `http://localhost:8386/api/products`
 - Headers:
   ```
   Content-Type: application/json
@@ -198,9 +198,9 @@ Base URL: `http://localhost:8080/api/products`
 **Request:**
 
 - Method: `PUT`
-- URL: `http://localhost:8080/api/products/{id}`
+- URL: `http://localhost:8386/api/products/{id}`
 
-  Ví dụ: `http://localhost:8080/api/products/1`
+  Ví dụ: `http://localhost:8386/api/products/1`
 - Headers:
   ```
   Content-Type: application/json
@@ -232,9 +232,9 @@ Base URL: `http://localhost:8080/api/products`
 **Request:**
 
 - Method: `DELETE`
-- URL: `http://localhost:8080/api/products/{id}`
+- URL: `http://localhost:8386/api/products/{id}`
 
-  Ví dụ: `http://localhost:8080/api/products/1`
+  Ví dụ: `http://localhost:8386/api/products/1`
 
 **Response:**
 
@@ -246,7 +246,7 @@ Status: 204 No Content
 
 1. **Tạo Collection**: Tạo một collection mới tên "Product API" để quản lý tất cả requests
 2. **Sử dụng Environment Variables**:
-    - Tạo variable `baseUrl` = `http://localhost:8080`
+    - Tạo variable `baseUrl` = `http://localhost:8386`
     - Sử dụng: `{{baseUrl}}/api/products`
 3. **Save Responses**: Lưu response examples để tham khảo
 4. **Test Scripts**: Thêm tests để tự động validate responses
@@ -423,7 +423,7 @@ docker run --name jenkins-blueocean --restart=on-failure --detach \
   --env DOCKER_CERT_PATH=/certs/client --env DOCKER_TLS_VERIFY=1 \
   --volume jenkins-data:/var/jenkins_home \
   --volume jenkins-docker-certs:/certs/client:ro \
-  --publish 8080:8080 --publish 50000:50000 myjenkins-blueocean:2.541.3-1
+  --publish 8080:8080 --publish 50000:50000 --publish 8386:8386 myjenkins-blueocean:2.541.3-1
 ```
 
 #### 4. Lấy initial admin password
@@ -465,7 +465,7 @@ docker volume rm jenkins-data jenkins-docker-certs
 
 ### H2 Console
 
-Truy cập H2 Console tại: `http://localhost:8080/h2-console`
+Truy cập H2 Console tại: `http://localhost:8386/h2-console`
 
 **Connection settings:**
 
@@ -523,7 +523,7 @@ Các cấu hình chính có thể tuỳ chỉnh:
 
 ```properties
 # Server
-server.port=8080
+server.port=8386
 # H2 Database
 spring.datasource.url=jdbc:h2:mem:testdb
 spring.datasource.driverClassName=org.h2.Driver
