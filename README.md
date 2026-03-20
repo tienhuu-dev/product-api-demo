@@ -4,15 +4,15 @@ REST API đơn giản để quản lý sản phẩm, được xây dựng bằng
 
 ## 📋 Mục lục
 
-- [Tổng quan](#tổng-quan)
-- [Công nghệ sử dụng](#công-nghệ-sử-dụng)
-- [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
-- [Cài đặt và chạy](#cài-đặt-và-chạy)
-- [API Endpoints](#api-endpoints)
-- [Testing](#testing)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [Docker](#docker)
-- [Database](#database)
+- [Tổng quan](#-tổng-quan)
+- [Công nghệ sử dụng](#-công-nghệ-sử-dụng)
+- [Yêu cầu hệ thống](#-yêu-cầu-hệ-thống)
+- [Cài đặt và chạy](#-cài-đặt-và-chạy)
+- [API Endpoints](#-api-endpoints)
+- [Testing](#-testing)
+- [CI/CD Pipeline](#-cicd-pipeline)
+- [Docker](#-docker)
+- [Database](#-database)
 
 ## 🎯 Tổng quan
 
