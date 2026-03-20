@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/<your-username>/product-api-demo.git'
+                git branch: 'main', url: 'https://github.com/tienhuu-dev/product-api-demo.git'
             }
         }
 
