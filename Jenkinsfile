@@ -54,11 +54,7 @@ pipeline {
         stage('Deploy (Local Container)') {
             steps {
                 script {
-                    // Kiểm tra và cài psmisc nếu chưa có (chỉ chạy 1 lần)
-                    sh "command -v fuser >/dev/null 2>&1 || (apt-get update && apt-get install -y psmisc)"
-
-                    // Dùng đúng tên biến APP_PORT
-                    sh "fuser -k ${params.APP_PORT}/tcp || true"
+                    sh "pkill -f 'java -jar target/*.jar' || true"
 
                     echo "Đang khởi chạy ứng dụng tại port: ${params.APP_PORT}..."
 
