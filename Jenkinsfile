@@ -41,10 +41,10 @@ pipeline {
                 sh '''
                     nohup java -jar target/*.jar > app.log 2>&1 &
                     sleep 10
-                    curl -s http://localhost:8080/api/products || echo "API started!"
+                    curl -s http://localhost:8386/api/products || echo "API started!"
                 '''
-                echo "Demo API chạy tại: http://localhost:8080/api/products (GET all products)"
-                echo "H2 console: http://localhost:8080/h2-console (nếu muốn xem DB)"
+                echo "Demo API chạy tại: http://localhost:8386/api/products (GET all products)"
+                echo "H2 console: http://localhost:8386/h2-console (nếu muốn xem DB)"
             }
         }
     }
