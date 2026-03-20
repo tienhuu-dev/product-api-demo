@@ -58,11 +58,11 @@ pipeline {
                     sh "fuser -k ${params.PORT}/tcp || true"
 
                     echo "Đang khởi chạy ứng dụng tại port: ${params.PORT}..."
-                    sh "nohup java -jar ${env.JAR_PATH} --server.port=${params.PORT} > app.log 2>&1 &"
+                    sh "nohup java -jar ${env.JAR_PATH} --server.port=${params.APP_PORT} > app.log 2>&1 &"
 
                     // Đợi app khởi động
                     sleep 5
-                    echo "✅ App đã sẵn sàng tại: http://localhost:${params.PORT}/api/products"
+                    echo "✅ App đã sẵn sàng tại: http://localhost:${params.APP_PORT}/api/products"
                 }
             }
         }
