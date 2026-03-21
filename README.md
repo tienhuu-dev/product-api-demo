@@ -11,6 +11,7 @@ REST API đơn giản để quản lý sản phẩm, được xây dựng bằng
 - [API Endpoints](#-api-endpoints)
 - [Testing](#-testing)
 - [CI/CD Pipeline](#-cicd-pipeline)
+- [Webhook Auto Triggers](#-webhook-auto-triggers)
 - [Docker](#-docker)
 - [Database](#-database)
 
@@ -372,11 +373,11 @@ Trước khi chạy pipeline, cần cấu hình JDK và Maven trong Jenkins:
 2. Tìm section **JDK**
 3. Click **Add JDK**
 4. Cấu hình như sau:
-    - **Name**: `JDK17` (phải trùng với tên trong Jenkinsfile)
-    - **JAVA_HOME**: Đường dẫn đến JDK 17 trên máy
-        - Windows: `C:\Program Files\Java\jdk-17`
-        - Linux/Mac: `/usr/lib/jvm/java-17-openjdk` hoặc `/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home`
-    - Hoặc tích **Install automatically** và chọn version JDK 17
+   - **Name**: `JDK17` (phải trùng với tên trong Jenkinsfile)
+   - **JAVA_HOME**: Đường dẫn đến JDK 17 trên máy
+     - Windows: `C:\Program Files\Java\jdk-17`
+     - Linux/Mac: `/usr/lib/jvm/java-17-openjdk` hoặc `/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home`
+   - Hoặc tích **Install automatically** và chọn version JDK 17
 
 ##### 2. Cấu hình Maven
 
@@ -384,11 +385,11 @@ Trước khi chạy pipeline, cần cấu hình JDK và Maven trong Jenkins:
 2. Tìm section **Maven**
 3. Click **Add Maven**
 4. Cấu hình như sau:
-    - **Name**: `Maven3` (phải trùng với tên trong Jenkinsfile)
-    - **MAVEN_HOME**: Đường dẫn đến Maven trên máy
-        - Windows: `C:\Program Files\Apache\maven`
-        - Linux/Mac: `/usr/share/maven` hoặc `/opt/maven`
-    - Hoặc tích **Install automatically** và chọn version Maven 3.9.x
+   - **Name**: `Maven3` (phải trùng với tên trong Jenkinsfile)
+   - **MAVEN_HOME**: Đường dẫn đến Maven trên máy
+     - Windows: `C:\Program Files\Apache\maven`
+     - Linux/Mac: `/usr/share/maven` hoặc `/opt/maven`
+   - Hoặc tích **Install automatically** và chọn version Maven 3.9.x
 
 ##### 3. Lưu cấu hình
 
@@ -404,7 +405,6 @@ tools {
 ```
 
 **⚠️ Lưu ý quan trọng:**
-
 - Tên trong `tools` block phải **khớp chính xác** với tên đã đặt trong Global Tool Configuration
 - Nếu tên không khớp, pipeline sẽ báo lỗi: `Tool type "jdk" does not have an install of "JDK17" configured`
 
@@ -412,6 +412,222 @@ tools {
 
 - ✅ **Success**: API & Tests đều PASS
 - ❌ **Failure**: Kiểm tra logs để debug
+
+## 🔗 Webhook Auto Triggers
+
+Cấu hình tự động trigger Jenkins pipeline khi có push/commit lên GitHub sử dụng Webhook và Cloudflare Tunnel.
+
+### Tổng quan
+
+- **Branch**: `feature/webhook-auto-triggers`
+- **Mục đích**: Tự động chạy pipeline khi có thay đổi trên GitHub
+- **Công nghệ**: GitHub Webhook + Cloudflare Tunnel (expose local Jenkins ra internet)
+
+### Cloudflare Tunnel Setup
+
+Cloudflare Tunnel giúp expose Jenkins server local (localhost:8080) ra internet mà không cần public IP hay mở port firewall.
+
+#### 1. Chạy Cloudflare Tunnel
+
+```bash
+docker run --rm --network jenkins cloudflare/cloudflared:latest tunnel --url http://jenkins-blueocean:8080
+```
+
+**Giải thích:**
+- `--rm`: Tự động xóa container khi dừng
+- `--network jenkins`: Kết nối vào cùng Docker network với Jenkins
+- `tunnel --url http://jenkins-blueocean:8080`: Tạo tunnel đến Jenkins container
+
+**Output:**
+```
+Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):
+https://random-name-1234.trycloudflare.com
+```
+
+**⚠️ Lưu ý:**
+- URL này chỉ tồn tại khi container đang chạy
+- Mỗi lần chạy sẽ tạo URL mới (random)
+- Để sử dụng lâu dài, giữ terminal/container chạy hoặc dùng Cloudflare Tunnel với domain riêng
+
+#### 2. Copy URL Public
+
+Copy URL `https://random-name-1234.trycloudflare.com` để cấu hình GitHub Webhook
+
+### Cấu hình Jenkins Credentials
+
+Trước khi setup webhook, cần tạo credentials để GitHub có thể authenticate với Jenkins.
+
+#### 1. Tạo GitHub Personal Access Token (PAT)
+
+1. Vào GitHub → **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**
+2. Click **Generate new token** → **Generate new token (classic)**
+3. Cấu hình:
+   - **Note**: `Jenkins Webhook`
+   - **Expiration**: Chọn thời gian phù hợp (ví dụ: 90 days)
+   - **Select scopes**: Chọn các quyền sau
+     - ✅ `repo` (Full control of private repositories)
+     - ✅ `admin:repo_hook` (Full control of repository hooks)
+4. Click **Generate token**
+5. **⚠️ Copy token ngay** (chỉ hiển thị 1 lần): `ghp_xxxxxxxxxxxxxxxxxxxx`
+
+#### 2. Thêm Credentials vào Jenkins
+
+1. Vào Jenkins → **Manage Jenkins** → **Credentials**
+2. Click vào **(global)** domain
+3. Click **Add Credentials**
+4. Cấu hình như sau:
+
+   **Loại**: `Username with password`
+   
+   - **Username**: GitHub username của bạn (ví dụ: `tienhuu-dev`)
+   - **Password**: GitHub Personal Access Token vừa tạo (ví dụ: `ghp_xxxxxxxxxxxxxxxxxxxx`)
+   - **ID**: `github-credentials` (hoặc tên bạn muốn)
+   - **Description**: `GitHub PAT for Webhook`
+
+5. Click **Create**
+
+### Cấu hình Webhook trên GitHub
+
+#### 1. Vào Repository Settings
+
+1. Truy cập repository: `https://github.com/tienhuu-dev/product-api-demo`
+2. Click tab **Settings**
+3. Sidebar bên trái → Click **Webhooks**
+4. Click **Add webhook**
+
+#### 2. Cấu hình Webhook
+
+**Payload URL:**
+```
+https://random-name-1234.trycloudflare.com/github-webhook/
+```
+
+**⚠️ Lưu ý:** 
+- Thay `random-name-1234.trycloudflare.com` bằng URL từ Cloudflare Tunnel
+- Phải có `/github-webhook/` ở cuối
+
+**Content type:**
+```
+application/json
+```
+
+**Secret:** (Tùy chọn, để trống nếu không dùng)
+
+**Which events would you like to trigger this webhook?**
+- Chọn: **Just the push event** (hoặc custom nếu cần)
+
+**Active:**
+- ✅ Tích chọn
+
+Click **Add webhook**
+
+#### 3. Verify Webhook
+
+Sau khi tạo, GitHub sẽ gửi một ping request. Kiểm tra:
+- Trong danh sách Webhooks, click vào webhook vừa tạo
+- Tab **Recent Deliveries** sẽ hiển thị ping request
+- Status code `200` = Thành công ✅
+
+### Cấu hình Jenkins Job
+
+#### 1. Cấu hình Build Triggers
+
+1. Vào Jenkins Job/Pipeline
+2. Click **Configure**
+3. Section **Build Triggers**:
+   - ✅ Tích chọn **GitHub hook trigger for GITScm polling**
+
+#### 2. Cấu hình Source Code Management
+
+1. Section **Source Code Management**:
+   - Chọn **Git**
+   - **Repository URL**: `https://github.com/tienhuu-dev/product-api-demo.git`
+   - **Credentials**: Chọn credentials đã tạo (`github-credentials`)
+   - **Branches to build**: 
+     - Branch Specifier: `*/feature/webhook-auto-triggers` (hoặc `*/main`)
+
+2. Click **Save**
+
+### Test Webhook
+
+#### 1. Tạo commit và push
+
+```bash
+git checkout feature/webhook-auto-triggers
+echo "Test webhook" >> test.txt
+git add .
+git commit -m "Test webhook trigger"
+git push origin feature/webhook-auto-triggers
+```
+
+#### 2. Kiểm tra Jenkins
+
+- Jenkins sẽ tự động trigger pipeline
+- Vào Jenkins Dashboard → Job sẽ xuất hiện trong Build Queue
+- Click vào build number để xem logs
+
+#### 3. Kiểm tra GitHub
+
+- Vào Settings → Webhooks → Click vào webhook
+- Tab **Recent Deliveries** sẽ hiển thị request mới
+- Status `200` = Webhook thành công
+
+### Troubleshooting
+
+#### Webhook không trigger Jenkins
+
+**1. Kiểm tra Cloudflare Tunnel đang chạy:**
+```bash
+docker ps | grep cloudflared
+```
+
+**2. Kiểm tra URL Cloudflare:**
+- Mở browser truy cập: `https://random-name-1234.trycloudflare.com`
+- Nếu không mở được → Tunnel bị ngắt
+
+**3. Kiểm tra GitHub Webhook delivery:**
+- Vào Recent Deliveries
+- Click vào delivery → Xem Response
+- Nếu lỗi 5xx → Vấn đề Jenkins
+- Nếu lỗi 4xx → Vấn đề URL hoặc credentials
+
+**4. Kiểm tra Jenkins logs:**
+```bash
+docker logs -f jenkins-blueocean
+```
+
+#### Lỗi Authentication
+
+- Kiểm tra GitHub PAT còn hạn không
+- Kiểm tra credentials trong Jenkins đúng không
+- Thử tạo lại credentials
+
+### Chạy Cloudflare Tunnel lâu dài
+
+#### Option 1: Chạy trong background
+
+```bash
+docker run -d --name cloudflare-tunnel --network jenkins cloudflare/cloudflared:latest tunnel --url http://jenkins-blueocean:8080
+```
+
+Xem logs:
+```bash
+docker logs -f cloudflare-tunnel
+```
+
+#### Option 2: Sử dụng Cloudflare Named Tunnel (Khuyến nghị cho production)
+
+1. Tạo Cloudflare account
+2. Setup Cloudflare Tunnel với domain riêng
+3. URL cố định: `https://jenkins.yourdomain.com`
+
+### Lợi ích của Webhook Auto Triggers
+
+✅ **Tự động hóa hoàn toàn:** Không cần trigger pipeline thủ công
+✅ **Fast feedback:** Phát hiện lỗi ngay sau khi push
+✅ **CI/CD thực sự:** Continuous Integration tự động
+✅ **Theo dõi từng commit:** Mỗi commit đều được test
+✅ **Collaboration:** Team members đều thấy kết quả build ngay lập tức
 
 ## 🐳 Docker
 
