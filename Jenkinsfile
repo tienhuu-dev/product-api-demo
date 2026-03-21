@@ -1,7 +1,7 @@
 pipeline {
     agent any
 
-    // THAY ĐỔI 1: Thêm triggers để Jenkins biết lắng nghe GitHub Webhook
+    // Kích hoạt lắng nghe tín hiệu từ GitHub Webhook
     triggers {
         githubPush()
     }
@@ -14,8 +14,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // THAY ĐỔI 2: Xóa dòng 'git branch: main...' cũ
-                // Thay bằng 'checkout scm' để Jenkins tự động lấy đúng code của nhánh vừa push lên
+                // Tự động lấy đúng code của nhánh được push lên (linh hoạt hơn gán cứng nhánh 'main')
                 checkout scm
             }
         }
@@ -32,6 +31,7 @@ pipeline {
             }
             post {
                 always {
+                    // Thu thập kết quả test để hiển thị biểu đồ trên Jenkins
                     junit 'target/surefire-reports/*.xml'
                 }
             }
@@ -39,33 +39,43 @@ pipeline {
 
         stage('Package JAR') {
             steps {
+                // Lưu trữ file JAR để có thể tải về từ giao diện Jenkins
                 archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
             }
         }
 
         stage('Deploy (giả lập local)') {
             steps {
-               sh '''
-    # 1. Giết app cũ
-    pkill -f "java -jar target/.*.jar" || true
-    sleep 2
+                sh '''
+                    # 1. Tìm và tắt các tiến trình Java cũ dựa trên tên file JAR (tránh xung đột cổng)
+                    pkill -f "java -jar target/.*.jar" || true
+                    sleep 2
 
-    # 2. Khởi động app mới (Quan trọng: Phải có JENKINS_NODE_COOKIE)
-    export JENKINS_NODE_COOKIE=dontKillMe
-    nohup java -jar target/*.jar --server.port=8386 > app.log 2>&1 &
-    
-    # 3. Đợi app "thức dậy" hoàn toàn
-    echo "🚀 Đang chờ Spring Boot khởi động..."
-    sleep 20 
+                    # 2. Đặt biến môi trường để Jenkins không tự động tắt App sau khi Pipeline kết thúc
+                    export JENKINS_NODE_COOKIE=dontKillMe
 
-    # 4. Kiểm tra nội bộ Jenkins xem app sống chưa
-    curl -s http://localhost:8386/api/products || echo "App chưa phản hồi, kiểm tra app.log"
-'''
+                    # 3. Khởi động ứng dụng Spring Boot ở chế độ chạy ngầm (background)
+                    # Kết quả được ghi vào file app.log để tiện kiểm tra lỗi
+                    nohup java -jar target/*.jar --server.port=8386 > app.log 2>&1 &
+                    
+                    echo "🚀 Đang chờ Spring Boot khởi động trên cổng 8386..."
+                    sleep 20 
+
+                    # 4. Kiểm tra nội bộ container xem API đã phản hồi chưa
+                    curl -s http://localhost:8386/api/products || echo "⚠️ App chưa phản hồi, hãy kiểm tra app.log bên trong container!"
+                '''
+                
+                echo "✅ Demo API chạy tại: http://localhost:8386/api/products"
+            }
         }
     }
 
     post {
-        success { echo "🎉 Pipeline PASS - API & Tests OK!" }
-        failure { echo "❌ Pipeline FAIL - kiểm tra test hoặc build" }
+        success {
+            echo "🎉 Pipeline THÀNH CÔNG - Webhook hoạt động tốt!"
+        }
+        failure {
+            echo "❌ Pipeline THẤT BẠI - Vui lòng kiểm tra lại log build hoặc lỗi test."
+        }
     }
 }
