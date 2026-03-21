@@ -432,7 +432,7 @@ Project bao gồm Dockerfile để setup Jenkins với các tools cần thiết:
 ```bash
 docker network create jenkins
 ```
-
+cd vào Project 
 #### 2. Build Docker image
 
 ```bash
@@ -462,16 +462,16 @@ docker run --name jenkins-blueocean --restart=on-failure --detach \
   --volume jenkins-docker-certs:/certs/client:ro \
   --publish 8080:8080 --publish 8386:8386 myjenkins-blueocean:2.541.3-1
 ```
+#### 4. Truy cập Jenkins
 
-#### 4. Lấy initial admin password
+Mở trình duyệt và truy cập: `http://localhost:8080`
+
+#### 5. Lấy initial admin password
 
 ```bash
 docker exec jenkins-blueocean cat /var/jenkins_home/secrets/initialAdminPassword
 ```
-
-#### 5. Truy cập Jenkins
-
-Mở trình duyệt và truy cập: `http://localhost:8080`
+#### 6. Cấu hình Jenkins Pipeline trên web theo link github project của bạn 
 
 ### Docker Commands hữu ích
 
