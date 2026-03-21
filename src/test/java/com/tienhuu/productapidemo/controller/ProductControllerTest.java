@@ -98,6 +98,6 @@ class ProductControllerTest {
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
                 // Sai cố tình → test này sẽ fail khi chạy
-                .andExpect(jsonPath("$[0].name").value("Laptop"));
+                .andExpect(jsonPath("$[0].name").value("ahihi"));
     }
 }
