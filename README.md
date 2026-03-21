@@ -362,14 +362,51 @@ Project được cấu hình với Jenkins pipeline gồm các stage sau:
 
 ### Cấu hình Jenkins
 
-#### Prerequisites
+#### Prerequisites - Global Tool Configuration
+
+Trước khi chạy pipeline, cần cấu hình JDK và Maven trong Jenkins:
+
+##### 1. Cấu hình JDK
+
+1. Vào **Manage Jenkins** → **Global Tool Configuration**
+2. Tìm section **JDK**
+3. Click **Add JDK**
+4. Cấu hình như sau:
+    - **Name**: `JDK17` (phải trùng với tên trong Jenkinsfile)
+    - **JAVA_HOME**: Đường dẫn đến JDK 17 trên máy
+        - Windows: `C:\Program Files\Java\jdk-17`
+        - Linux/Mac: `/usr/lib/jvm/java-17-openjdk` hoặc `/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home`
+    - Hoặc tích **Install automatically** và chọn version JDK 17
+
+##### 2. Cấu hình Maven
+
+1. Trong cùng trang **Global Tool Configuration**
+2. Tìm section **Maven**
+3. Click **Add Maven**
+4. Cấu hình như sau:
+    - **Name**: `Maven3` (phải trùng với tên trong Jenkinsfile)
+    - **MAVEN_HOME**: Đường dẫn đến Maven trên máy
+        - Windows: `C:\Program Files\Apache\maven`
+        - Linux/Mac: `/usr/share/maven` hoặc `/opt/maven`
+    - Hoặc tích **Install automatically** và chọn version Maven 3.9.x
+
+##### 3. Lưu cấu hình
+
+Click **Save** ở cuối trang
+
+##### 4. Verify trong Jenkinsfile
 
 ```groovy
 tools {
-    jdk 'JDK17'      // Cấu hình trong Jenkins Global Tool Configuration
-    maven 'Maven3'   // Cấu hình trong Jenkins Global Tool Configuration
+    jdk 'JDK17'      // Tên phải khớp với Global Tool Configuration
+    maven 'Maven3'   // Tên phải khớp với Global Tool Configuration
 }
 ```
+
+**⚠️ Lưu ý quan trọng:**
+
+- Tên trong `tools` block phải **khớp chính xác** với tên đã đặt trong Global Tool Configuration
+- Nếu tên không khớp, pipeline sẽ báo lỗi: `Tool type "jdk" does not have an install of "JDK17" configured`
 
 #### Kết quả Pipeline
 
