@@ -45,23 +45,22 @@ pipeline {
 
         stage('Deploy (giả lập local)') {
             steps {
-                sh '''
-            # Tìm và tắt các tiến trình Java đang chạy ứng dụng của mình
-            # -f: tìm kiếm toàn bộ dòng lệnh (full command line)
-            # || true: để tránh lỗi Pipeline dừng lại nếu không tìm thấy tiến trình nào để tắt
-            pkill -f "java -jar target/.*.jar" || true
-            
-            # Đợi 2 giây để tiến trình cũ giải phóng tài nguyên hoàn toàn
-            sleep 2
-            
-            # Khởi động App mới
-            nohup java -jar target/*.jar --server.port=8386 > app.log 2>&1 &
-            
-            echo "🚀 App đang khởi động trên cổng 8386..."
-            sleep 10
-            curl -s http://localhost:8386/api/products || echo "Check log nếu không thấy API phản hồi"
-            '''
-            }
+               sh '''
+    # 1. Giết app cũ
+    pkill -f "java -jar target/.*.jar" || true
+    sleep 2
+
+    # 2. Khởi động app mới (Quan trọng: Phải có JENKINS_NODE_COOKIE)
+    export JENKINS_NODE_COOKIE=dontKillMe
+    nohup java -jar target/*.jar --server.port=8386 > app.log 2>&1 &
+    
+    # 3. Đợi app "thức dậy" hoàn toàn
+    echo "🚀 Đang chờ Spring Boot khởi động..."
+    sleep 20 
+
+    # 4. Kiểm tra nội bộ Jenkins xem app sống chưa
+    curl -s http://localhost:8386/api/products || echo "App chưa phản hồi, kiểm tra app.log"
+'''
         }
     }
 
