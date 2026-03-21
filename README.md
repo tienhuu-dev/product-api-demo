@@ -420,7 +420,8 @@ Cấu hình tự động trigger Jenkins pipeline khi có push/commit lên GitHu
 ### Tổng quan
 
 - **Branch**: `feature/webhook-auto-triggers`
-- **Mục đích**: Tự động chạy pipeline khi có thay đổi trên GitHub
+- **Pipeline Type**: **Multibranch Pipeline**
+- **Mục đích**: Tự động chạy pipeline khi có thay đổi trên bất kỳ branch nào
 - **Công nghệ**: GitHub Webhook + Cloudflare Tunnel (expose local Jenkins ra internet)
 
 ### Cloudflare Tunnel Setup
@@ -528,79 +529,169 @@ Sau khi tạo, GitHub sẽ gửi một ping request. Kiểm tra:
 - Tab **Recent Deliveries** sẽ hiển thị ping request
 - Status code `200` = Thành công ✅
 
-### Cấu hình Jenkins Job
+### Tạo Multibranch Pipeline trong Jenkins
 
-#### 1. Cấu hình Build Triggers
+#### 1. Tạo Multibranch Pipeline mới
 
-1. Vào Jenkins Job/Pipeline
-2. Click **Configure**
-3. Section **Build Triggers**:
-   - ✅ Tích chọn **GitHub hook trigger for GITScm polling**
+1. Vào Jenkins Dashboard
+2. Click **New Item**
+3. Nhập tên: `product-api-demo` (hoặc tên bạn muốn)
+4. Chọn **Multibranch Pipeline**
+5. Click **OK**
 
-#### 2. Cấu hình Source Code Management
+#### 2. Cấu hình Branch Sources
 
-1. Section **Source Code Management**:
-   - Chọn **Git**
-   - **Repository URL**: `https://github.com/tienhuu-dev/product-api-demo.git`
+Trong màn hình cấu hình:
+
+**Section: Branch Sources**
+
+1. Click **Add source** → Chọn **GitHub**
+
+2. Cấu hình GitHub source:
    - **Credentials**: Chọn credentials đã tạo (`github-credentials`)
-   - **Branches to build**: 
-     - Branch Specifier: `*/feature/webhook-auto-triggers` (hoặc `*/main`)
+   - **Repository HTTPS URL**: `https://github.com/tienhuu-dev/product-api-demo`
+   - Hoặc **Owner**: `tienhuu-dev` và **Repository**: `product-api-demo`
 
-2. Click **Save**
+3. **Behaviours** (mở rộng để cấu hình):
+   - ✅ **Discover branches**: All branches
+   - ✅ **Discover pull requests from origin**: 
+     - Strategy: Merging the pull request with the current target branch revision
+   - Có thể bỏ chọn các behaviours không cần thiết
 
-### Test Webhook
+#### 3. Cấu hình Build Configuration
 
-#### 1. Tạo commit và push
+**Section: Build Configuration**
+
+- **Mode**: `by Jenkinsfile`
+- **Script Path**: `Jenkinsfile` (mặc định, nếu file ở root)
+
+#### 4. Cấu hình Scan Multibranch Pipeline Triggers
+
+**Section: Scan Multibranch Pipeline Triggers**
+
+- ✅ Tích chọn **Scan by webhook**
+  - **Trigger token**: Tạo một token bất kỳ (ví dụ: `product-api-token`)
+  - Hoặc để trống nếu dùng GitHub hook mặc định
+
+- Hoặc ✅ Tích chọn **Periodically if not otherwise run**
+  - **Interval**: 1 minute (hoặc tùy chọn)
+
+**⚠️ Quan trọng:**
+- **KHÔNG cần** tích "Build whenever a SNAPSHOT dependency is built"
+- **KHÔNG cần** tích "Poll SCM" (webhook sẽ tự động trigger)
+
+#### 5. Lưu cấu hình
+
+Click **Save**
+
+Jenkins sẽ tự động:
+- Scan repository lần đầu
+- Phát hiện tất cả branches có Jenkinsfile
+- Tạo pipeline cho mỗi branch
+
+### Kiểm tra Multibranch Pipeline đã được tạo
+
+Sau khi Save, Jenkins sẽ:
+1. Hiển thị danh sách các branch được phát hiện
+2. Mỗi branch là một sub-pipeline
+3. Click vào branch để xem build history
+
+Ví dụ:
+```
+product-api-demo
+├── main
+├── feature/webhook-auto-triggers
+└── develop (nếu có)
+```
+
+### Test Webhook với Multibranch Pipeline
+
+#### 1. Test trên branch hiện tại
 
 ```bash
 git checkout feature/webhook-auto-triggers
-echo "Test webhook" >> test.txt
+echo "Test webhook multibranch" >> test.txt
 git add .
-git commit -m "Test webhook trigger"
+git commit -m "Test webhook trigger for multibranch"
 git push origin feature/webhook-auto-triggers
 ```
 
 #### 2. Kiểm tra Jenkins
 
-- Jenkins sẽ tự động trigger pipeline
-- Vào Jenkins Dashboard → Job sẽ xuất hiện trong Build Queue
-- Click vào build number để xem logs
+- Jenkins sẽ tự động:
+  1. Nhận webhook từ GitHub
+  2. Scan repository
+  3. Phát hiện branch `feature/webhook-auto-triggers` có thay đổi
+  4. Trigger build cho branch đó
+  
+- Vào Dashboard → `product-api-demo` → Branch `feature/webhook-auto-triggers`
+- Build mới sẽ xuất hiện trong Build History
 
-#### 3. Kiểm tra GitHub
+#### 3. Test tạo branch mới
+
+```bash
+git checkout -b feature/test-new-branch
+echo "New branch test" > newfile.txt
+git add .
+git commit -m "Test new branch detection"
+git push origin feature/test-new-branch
+```
+
+Jenkins sẽ:
+- Tự động phát hiện branch mới
+- Tạo pipeline cho branch mới
+- Chạy build lần đầu
+
+#### 4. Kiểm tra GitHub Webhook
 
 - Vào Settings → Webhooks → Click vào webhook
-- Tab **Recent Deliveries** sẽ hiển thị request mới
-- Status `200` = Webhook thành công
+- Tab **Recent Deliveries** sẽ hiển thị:
+  - Push event cho mỗi commit
+  - Status `200` = Webhook thành công
+  - Response từ Jenkins
 
-### Troubleshooting
+### Troubleshooting Multibranch Pipeline
 
-#### Webhook không trigger Jenkins
+#### Webhook không trigger scan
 
-**1. Kiểm tra Cloudflare Tunnel đang chạy:**
-```bash
-docker ps | grep cloudflared
+**1. Kiểm tra webhook delivery trên GitHub:**
 ```
-
-**2. Kiểm tra URL Cloudflare:**
-- Mở browser truy cập: `https://random-name-1234.trycloudflare.com`
-- Nếu không mở được → Tunnel bị ngắt
-
-**3. Kiểm tra GitHub Webhook delivery:**
-- Vào Recent Deliveries
-- Click vào delivery → Xem Response
-- Nếu lỗi 5xx → Vấn đề Jenkins
-- Nếu lỗi 4xx → Vấn đề URL hoặc credentials
-
-**4. Kiểm tra Jenkins logs:**
-```bash
-docker logs -f jenkins-blueocean
+Settings → Webhooks → Recent Deliveries
 ```
+- Nếu Status 2xx → Webhook đã gửi thành công
+- Nếu Status 4xx/5xx → Có lỗi (xem Response)
 
-#### Lỗi Authentication
+**2. Kiểm tra Jenkins Multibranch scan log:**
+- Vào Multibranch Pipeline → Click **Scan Multibranch Pipeline Log**
+- Xem log để biết Jenkins có nhận được webhook không
 
-- Kiểm tra GitHub PAT còn hạn không
-- Kiểm tra credentials trong Jenkins đúng không
-- Thử tạo lại credentials
+**3. Trigger scan thủ công:**
+- Vào Multibranch Pipeline
+- Click **Scan Multibranch Pipeline Now**
+- Xem có phát hiện branches không
+
+#### Branch không được phát hiện
+
+**1. Kiểm tra Jenkinsfile:**
+- Branch cần có file `Jenkinsfile` ở root
+- Nội dung Jenkinsfile phải hợp lệ
+
+**2. Kiểm tra Branch Sources filter:**
+- Vào Configure → Branch Sources
+- Xem filter có exclude branch không
+- Include: `*` (tất cả branches)
+
+#### Credentials không hoạt động
+
+**1. Test credentials:**
+```bash
+curl -u tienhuu-dev:ghp_xxxx https://api.github.com/user
+```
+- Nếu trả về thông tin user → Credentials OK
+- Nếu 401 → Credentials sai
+
+**2. Kiểm tra scope của PAT:**
+- PAT cần có scope: `repo`, `admin:repo_hook`
 
 ### Chạy Cloudflare Tunnel lâu dài
 
@@ -615,19 +706,25 @@ Xem logs:
 docker logs -f cloudflare-tunnel
 ```
 
+Xem URL:
+```bash
+docker logs cloudflare-tunnel 2>&1 | grep -o 'https://.*\.trycloudflare\.com'
+```
+
 #### Option 2: Sử dụng Cloudflare Named Tunnel (Khuyến nghị cho production)
 
 1. Tạo Cloudflare account
 2. Setup Cloudflare Tunnel với domain riêng
 3. URL cố định: `https://jenkins.yourdomain.com`
 
-### Lợi ích của Webhook Auto Triggers
+### Lợi ích của Multibranch Pipeline + Webhook
 
-✅ **Tự động hóa hoàn toàn:** Không cần trigger pipeline thủ công
-✅ **Fast feedback:** Phát hiện lỗi ngay sau khi push
-✅ **CI/CD thực sự:** Continuous Integration tự động
-✅ **Theo dõi từng commit:** Mỗi commit đều được test
-✅ **Collaboration:** Team members đều thấy kết quả build ngay lập tức
+✅ **Tự động phát hiện branches:** Không cần tạo pipeline cho mỗi branch thủ công
+✅ **Isolation:** Mỗi branch có pipeline riêng, không ảnh hưởng lẫn nhau
+✅ **PR Testing:** Có thể test Pull Requests trước khi merge
+✅ **Tự động cleanup:** Xóa pipeline khi branch bị xóa
+✅ **Fast feedback:** Mỗi commit trên mọi branch đều được test tự động
+✅ **Branch strategy support:** Phù hợp với Git Flow, GitHub Flow
 
 ## 🐳 Docker
 
