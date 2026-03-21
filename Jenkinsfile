@@ -39,12 +39,25 @@ pipeline {
         stage('Deploy (giả lập local)') {
             steps {
                 sh '''
-                    nohup java -jar target/*.jar > app.log 2>&1 &
-                    sleep 10
-                    curl -s http://localhost:8386/api/products || echo "API started!"
+                    # BƯỚC 1: Tắt App cũ đang chạy để giải phóng cổng 8386
+                    # pkill -f sẽ tìm tiến trình dựa trên tên file jar
+                    pkill -f "java -jar target/.*.jar" || true
+                    sleep 2
+
+                    # BƯỚC 2: "Bùa hộ mệnh" để Jenkins không kill tiến trình sau khi kết thúc Stage
+                    export JENKINS_NODE_COOKIE=dontKillMe
+
+                    # BƯỚC 3: Chạy App ngầm với nohup
+                    # Cổng 8386 được cấu hình trực tiếp để dễ quản lý
+                    nohup java -jar target/*.jar --server.port=8386 > app.log 2>&1 &
+                    
+                    echo "🚀 Đang chờ App khởi động..."
+                    sleep 20 
+
+                    # BƯỚC 4: Kiểm tra nội bộ xem App đã lên chưa
+                    curl -s http://localhost:8386/api/products || echo "⚠️ App chưa phản hồi ngay, hãy kiểm tra lại sau!"
                 '''
-                echo "Demo API chạy tại: http://localhost:8386/api/products (GET all products)"
-                echo "H2 console: http://localhost:8386/h2-console (nếu muốn xem DB)"
+                echo "✅ Demo API chạy tại: http://localhost:8386/api/products"
             }
         }
     }
